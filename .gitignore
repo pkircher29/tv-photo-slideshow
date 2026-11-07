@@ -4,3 +4,4 @@ app/assets/thumbs/
 app/assets/media.js
 # build output
 *.apk
+*.idsig
