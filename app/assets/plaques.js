@@ -1,4 +1,32 @@
 ﻿// Museum-style plaques, keyed by converted file name: t = title, s = subtitle, m = medium.
+// These are samples for the demo pictures. Replace them with titles for your own photos.
 window.PLAQUES = {
-  // "0001.jpg": { t: "Still Life with Cocktail", s: "", m: "Bar top, oil on glass" }
+  "0000.jpg": { t: "Sunset Over a Parking Lot, Optimistically", s: "Study in Orange No. 1", m: "Gradient on pixels" },
+  "0001.jpg": { t: "The Blue Hour Arrives Unannounced", s: "", m: "Oil on regret" },
+  "0002.jpg": { t: "Portrait of a Very Tall Rectangle", s: "Artist unknown, mildly offended", m: "Pixels, upright" },
+  "0003.jpg": { t: "Bubbles Considering Their Options", s: "Circa last Tuesday", m: "Translucent ovals on teal" },
+  "0004.jpg": { t: "Lemon Meringue Having a Moment", s: "", m: "Yellow, pink, no regrets" },
+  "0005.jpg": { t: "Violet Fog Rolls In From Nowhere in Particular", s: "Do Not Touch", m: "Mist and mild confusion" },
+  "0006.jpg": { t: "Hot Sauce on Everything", s: "Late period", m: "Orange on crimson" },
+  "0007.jpg": { t: "Mint Condition (Not Actually Mint)", s: "", m: "Green and teal, pre-owned" },
+  "0008.jpg": { t: "Self-Portrait as a Lava Lamp", s: "Warm, round, slightly sticky", m: "Wax, imagined" },
+  "0009.jpg": { t: "The Ocean Politely Declines to Comment", s: "", m: "Blue on blue" },
+  "0010.jpg": { t: "Grapefruit at Dawn", s: "Breakfast series, plate 4", m: "Citrus, digital" },
+  "0011.jpg": { t: "Twilight Is Doing Its Best", s: "", m: "Purple, mostly" },
+  "0012.jpg": { t: "Gumdrop Nebula", s: "Sweet, sticky, unlicensed", m: "Candy on cosmos" },
+  "0013.jpg": { t: "Cool Ranch Landscape", s: "", m: "Cyan with a hint of attitude" },
+  "0014.jpg": { t: "Two Bubbles and a Big Decision", s: "Dramatic still", m: "Circles, awkwardly arranged" },
+  "0015.jpg": { t: "Sunburn, Four Hours Later", s: "Warm period", m: "Red on orange on red" },
+  "0016.jpg": { t: "Mermaid Pool Party", s: "Guest list unclear", m: "Aqua gradient" },
+  "0017.jpg": { t: "Banana Hammock With Pink Trim", s: "", m: "Yellow, regrettable" },
+  "0018.jpg": { t: "Ode to the Screensaver", s: "Idle hands series", m: "Gradient, endlessly looping" },
+  "0019.jpg": { t: "Grape Soda Over Ice", s: "", m: "Violet fizz" },
+  "0020.jpg": { t: "The Great Orange Whatever", s: "Monumental, if you squint", m: "Tangerine on cranberry" },
+  "0021.jpg": { t: "Seafoam Green Looks Back", s: "", m: "Mint, thoughtful" },
+  "0022.jpg": { t: "Honey, I Shrank the Sunset", s: "Miniature masterpiece", m: "Gold on rose" },
+  "0023.jpg": { t: "Deep Thoughts, Shallow Gradient", s: "", m: "Indigo and overthinking" },
+  "0024.jpg": { t: "Fruit Punch, Unattended", s: "Party aftermath", m: "Red-orange spill" },
+  "0025.jpg": { t: "Cotton Candy Cloud, Four Stars", s: "Would nap on again", m: "Pastel, fluffy" },
+  "0026.jpg": { t: "Midnight Snack Reflecting on Its Choices", s: "", m: "Dark teal, fridge light" },
+  "0027.jpg": { t: "The Final Demo Picture, Bravely Smiling", s: "Curtain call", m: "Last gradient standing" }
 };

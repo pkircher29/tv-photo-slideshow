@@ -565,7 +565,7 @@
     runProgress(T_SWIRL + T_DIVE);
 
     function pos(s, simT) {
-      var ang = s.a + s.w * simT + camRot;
+      var ang = s.a - s.w * simT - camRot;
       return { x: Math.cos(ang) * s.r * R, y: Math.sin(ang) * s.r * R * TILT, depth: Math.sin(ang) };
     }
     function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
@@ -604,7 +604,7 @@
 
       // dust lanes
       for (i = 0; i < dust.length; i++) {
-        var d = dust[i], ang = d.a + d.w * sim + camRot;
+        var d = dust[i], ang = d.a - d.w * sim - camRot;
         g.globalAlpha = d.o; g.fillStyle = d.c;
         var ds = d.s / Math.max(1, zoom * .6);
         g.fillRect(Math.cos(ang) * d.r * R, Math.sin(ang) * d.r * R * TILT, ds, ds);
