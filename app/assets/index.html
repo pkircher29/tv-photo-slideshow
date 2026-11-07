@@ -572,7 +572,7 @@
     var photo = buildPhoto(target.m);
     photo.catch(function () {});
 
-    var T_SWIRL = 6500, T_DIVE = 3600;
+    var T_SWIRL = 20000, T_DIVE = 3600;
     var t0 = performance.now(), last = t0, sim = 0, camRot = 0;
     var zoomEnd = (H * .82) / target.size;
     var handedOff = false;
