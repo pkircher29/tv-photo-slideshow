@@ -1,0 +1,6 @@
+# generated from your own photos by tools/prepare-media.ps1 and tools/make-thumbs.ps1
+app/assets/media/
+app/assets/thumbs/
+app/assets/media.js
+# build output
+*.apk

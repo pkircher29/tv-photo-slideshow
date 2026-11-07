@@ -1,0 +1,719 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photo Slideshow</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  body { font-family: "Roboto", "Helvetica Neue", Arial, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; perspective: 1600px; overflow: hidden; }
+
+  .slide { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; will-change: transform, opacity; background: #000; }
+  .slide canvas.bg { position: absolute; left: -4%; top: -4%; width: 108%; height: 108%; opacity: .75; }
+  .slide .shade { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,.05) 0%, rgba(0,0,0,.55) 100%); }
+  .slide .kb { position: absolute; inset: 0; will-change: transform; }
+  .slide .kb img, .slide .kb video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .slide.fit .kb img { filter: drop-shadow(0 18px 40px rgba(0,0,0,.7)); }
+  .slide.fill .kb img { object-fit: cover; }
+  .slide .kb video { object-fit: contain; }
+
+  .collage { display: flex; gap: 1.4vw; padding: 4vh 3vw; box-sizing: border-box; }
+  .collage .cell { position: relative; flex: 1; overflow: hidden; border-radius: 1vw; box-shadow: 0 2vh 5vh rgba(0,0,0,.6); will-change: transform, opacity; }
+  .collage .cell img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform; }
+
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+
+  #caption { position: absolute; left: 5vw; bottom: 7vh; pointer-events: none; text-shadow: 0 2px 18px rgba(0,0,0,.8); }
+  #caption .month { font-size: 4.2vh; font-weight: 300; letter-spacing: 1.2em; text-transform: uppercase; opacity: 0; }
+  #caption .year { font-size: 11vh; font-weight: 100; letter-spacing: .08em; line-height: 1; opacity: 0; }
+  #caption .rule { height: 2px; width: 0; margin: 1.6vh 0; background: linear-gradient(90deg, #ff3d7f, #ffb13d, transparent); }
+
+  #progress { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; transform-origin: 0 50%; transform: scaleX(0);
+              background: linear-gradient(90deg, #ff3d7f, #ffb13d 50%, #3dd6ff); box-shadow: 0 0 12px rgba(255,120,120,.8); opacity: .85; }
+
+  #bokeh { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+  .orb { position: absolute; border-radius: 50%; opacity: 0; will-change: transform, opacity; }
+
+  #badge { position: absolute; top: 5vh; right: 4vw; padding: 1.2vh 2.4vw; border-radius: 99px; background: rgba(0,0,0,.45);
+           border: 1px solid rgba(255,255,255,.25); font-size: 2.6vh; letter-spacing: .4em; text-transform: uppercase; opacity: 0;
+           transition: opacity .4s; }
+  #info { position: absolute; top: 5vh; left: 4vw; font-size: 2.2vh; opacity: 0; transition: opacity .4s; text-shadow: 0 1px 8px #000; }
+
+  #galaxy { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; z-index: 5; }
+  #quip { position: absolute; left: 0; right: 0; bottom: 9vh; text-align: center; pointer-events: none; z-index: 6; opacity: 0; }
+  #quip.top { bottom: auto; top: 8vh; }
+  #plaque { position: absolute; right: 4vw; bottom: 8vh; z-index: 6; max-width: 34vw; padding: 2.2vh 2.2vw; opacity: 0; pointer-events: none;
+            background: #f5f0e6; color: #1d1b18; font-family: Georgia, "Times New Roman", serif; box-shadow: 0 1.5vh 5vh rgba(0,0,0,.7); border-top: .6vh solid #b08d3c; }
+  #plaque .pt { font-size: 3.6vh; font-style: italic; line-height: 1.15; }
+  #plaque .ps { font-size: 2.3vh; font-style: italic; margin-top: .4vh; color: #4a463e; }
+  #plaque .pa { font-size: 2.3vh; margin-top: 1.4vh; font-weight: bold; }
+  #plaque .pm { font-size: 2.1vh; margin-top: .3vh; color: #4a463e; }
+  #plaque .pl { font-size: 1.7vh; margin-top: 1.2vh; letter-spacing: .12em; text-transform: uppercase; color: #8a7340; }
+  #quip .tag { display: inline-block; font-size: 2.2vh; letter-spacing: .5em; padding: .8vh 2vw .8vh 2.5vw; border-radius: 99px; text-transform: uppercase;
+               background: rgba(0,0,0,.5); border: 1px solid rgba(255,214,120,.6); color: #ffd678; box-shadow: 0 0 24px rgba(255,200,90,.4); }
+  #quip .line { margin: 2.2vh auto 0; max-width: 80vw; font-size: 6.4vh; font-weight: 700; line-height: 1.15; letter-spacing: .01em;
+                color: #fff; text-shadow: 0 0 2px #000, 0 4px 30px rgba(0,0,0,.9), 0 0 40px rgba(255,61,127,.5); }
+
+  #intro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; z-index: 10; }
+  #intro h1 { margin: 0; font-weight: 100; font-size: 16vh; letter-spacing: .3em; padding-left: .3em; opacity: 0;
+              background: linear-gradient(90deg, #ff3d7f, #ffb13d, #3dd6ff, #ff3d7f); background-size: 300% 100%;
+              -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #intro img { height: 66vh; width: 66vh; opacity: 0; filter: drop-shadow(0 0 4vh rgba(255,190,80,.35)); }
+  #intro p { margin: 2vh 0 0; font-weight: 300; font-size: 3vh; letter-spacing: 1em; padding-left: 1em; text-transform: uppercase; opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="bokeh"></div>
+<div id="flash"></div>
+<div id="caption"><div class="month"></div><div class="rule"></div><div class="year"></div></div>
+<div id="progress"></div>
+<div id="badge"></div>
+<div id="info"></div>
+<canvas id="galaxy"></canvas>
+<div id="quip"><div class="line"></div></div>
+<div id="plaque"><div class="pt"></div><div class="ps"></div><div class="pa"></div><div class="pm"></div><div class="pl">On loan from the group chat</div></div>
+<div id="intro"><img id="logo" src="logo.jpg"><p>pictures &amp; memories</p></div>
+
+<script src="media.js"></script>
+<script src="tagged.js"></script>
+<script src="plaques.js"></script>
+<script>
+(function () {
+  'use strict';
+  window.addEventListener('error', function (e) { console.log('JS error: ' + e.message + ' @' + e.lineno); });
+  window.addEventListener('unhandledrejection', function (e) { console.log('Unhandled: ' + (e.reason && (e.reason.stack || e.reason))); });
+  var MEDIA = window.MEDIA || [];
+  // the original file names start with the real date (2023-12-17 00.57.09.jpg); the copied files' own dates are just when they were copied
+  MEDIA.forEach(function (m) { var d = /^(\d{4}-\d{2}-\d{2})/.exec(m.n || ''); if (d) m.d = d[1]; });
+  if (/only=plaque/.test(location.search)) MEDIA = MEDIA.filter(function (m) { return (window.PLAQUES || {})[m.f]; });   // preview aid
+  if (/only=tagged/.test(location.search)) MEDIA = MEDIA.filter(function (m) { return (window.TAGGED || []).indexOf(m.f) >= 0; });   // preview aid
+  console.log('slideshow start, items=' + MEDIA.length);
+  var SPEEDS = [6000, 9000, 4000];
+  var speedIdx = 0;
+  var TRANS_MS = 1500;
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  var stage = document.getElementById('stage');
+  var flash = document.getElementById('flash');
+  var progress = document.getElementById('progress');
+  var badge = document.getElementById('badge');
+  var info = document.getElementById('info');
+  var caption = document.getElementById('caption');
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function anim(el, frames, opts) {
+    if (!el.animate) { var last = frames[frames.length - 1]; for (var k in last) el.style[k] = last[k]; return { finished: Promise.resolve(), cancel: function () {} }; }
+    var a = el.animate(frames, opts);
+    if (!a.finished) a.finished = new Promise(function (res) { a.onfinish = res; });
+    return a;
+  }
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+
+  // ---------- playlist: shuffled, no two videos in a row, occasional 3-photo collages ----------
+  function buildPlaylist() {
+    var items = shuffle(MEDIA.slice());
+    for (var i = 1; i < items.length; i++) {
+      if (items[i].t === 'v' && items[i - 1].t === 'v') {
+        for (var j = i + 1; j < items.length; j++) if (items[j].t !== 'v') { var t = items[i]; items[i] = items[j]; items[j] = t; break; }
+      }
+    }
+    var out = [], pending = [];
+    var sinceCollage = 0;
+    items.forEach(function (m) {
+      var portrait = m.t === 'i' && m.h > m.w * 1.15;
+      if (portrait && sinceCollage > 7) {
+        pending.push(m);
+        if (pending.length === 3) { out.push({ collage: pending }); pending = []; sinceCollage = 0; }
+        return;
+      }
+      out.push(m); sinceCollage++;
+    });
+    pending.forEach(function (m) { out.push(m); });
+    return out;
+  }
+
+  var playlist = buildPlaylist();
+  var pos = -1;
+  var current = null;
+  var timer = null;
+  var paused = false;
+  var busy = false;
+  var lastTrans = -1;
+  var shownAt = 0, dwell = 0;
+
+  // ---------- blurred backdrop: tiny canvas, scaled up = free blur ----------
+  function backdrop(img) {
+    var c = document.createElement('canvas');
+    c.className = 'bg'; c.width = 48; c.height = 27;
+    try {
+      var x = c.getContext('2d');
+      var s = Math.max(48 / img.naturalWidth, 27 / img.naturalHeight);
+      var w = img.naturalWidth * s, h = img.naturalHeight * s;
+      x.drawImage(img, (48 - w) / 2, (27 - h) / 2, w, h);
+    } catch (e) {}
+    return c;
+  }
+
+  function loadImg(src) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.onload = function () { (im.decode ? im.decode() : Promise.resolve()).then(function () { res(im); }, function () { res(im); }); };
+      im.onerror = rej;
+      im.src = src;
+    });
+  }
+
+  function buildPhoto(m) {
+    return loadImg('media/' + m.f).then(function (im) {
+      var el = document.createElement('div');
+      var ar = im.naturalWidth / im.naturalHeight;
+      el.className = 'slide ' + (ar > 1.45 && ar < 2.1 ? 'fill' : 'fit');
+      el.appendChild(backdrop(im));
+      var shade = document.createElement('div'); shade.className = 'shade'; el.appendChild(shade);
+      var kb = document.createElement('div'); kb.className = 'kb'; kb.appendChild(im); el.appendChild(kb);
+      return { el: el, kb: kb, meta: m, kind: 'photo' };
+    });
+  }
+
+  function buildCollage(list) {
+    return Promise.all(list.map(function (m) { return loadImg('media/' + m.f); })).then(function (imgs) {
+      var el = document.createElement('div');
+      el.className = 'slide';
+      el.appendChild(backdrop(imgs[1]));
+      var shade = document.createElement('div'); shade.className = 'shade'; el.appendChild(shade);
+      var wrap = document.createElement('div'); wrap.className = 'kb collage'; el.appendChild(wrap);
+      var cells = imgs.map(function (im) { var c = document.createElement('div'); c.className = 'cell'; c.appendChild(im); wrap.appendChild(c); return c; });
+      return { el: el, kb: null, cells: cells, meta: list[0], kind: 'collage' };
+    });
+  }
+
+  function buildVideo(m) {
+    return new Promise(function (res, rej) {
+      var v = document.createElement('video');
+      v.preload = 'auto'; v.playsInline = true; v.muted = false;
+      var done = false;
+      var to = setTimeout(function () { if (!done) { done = true; rej(new Error('video timeout')); } }, 8000);
+      v.onloadeddata = function () {
+        if (done) return; done = true; clearTimeout(to);
+        var el = document.createElement('div');
+        el.className = 'slide';
+        var c = document.createElement('canvas'); c.className = 'bg'; c.width = 48; c.height = 27;
+        try { var x = c.getContext('2d'); x.drawImage(v, 0, 0, 48, 27); } catch (e) {}
+        el.appendChild(c);
+        var shade = document.createElement('div'); shade.className = 'shade'; el.appendChild(shade);
+        var kb = document.createElement('div'); kb.className = 'kb'; kb.appendChild(v); el.appendChild(kb);
+        res({ el: el, kb: kb, video: v, meta: m, kind: 'video' });
+      };
+      v.onerror = function () { if (!done) { done = true; clearTimeout(to); rej(new Error('video error')); } };
+      v.src = 'media/' + m.f;
+    });
+  }
+
+  function build(item) {
+    if (item.collage) return buildCollage(item.collage);
+    return item.t === 'v' ? buildVideo(item) : buildPhoto(item);
+  }
+
+  // ---------- transitions (incoming b over outgoing a) ----------
+  var E = 'cubic-bezier(.77,0,.18,1)';
+  var TRANSITIONS = [
+    function fadeZoom(a, b, d) {
+      anim(b, [{ opacity: 0, transform: 'scale(1.18)' }, { opacity: 1, transform: 'scale(1)' }], { duration: d, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'both' });
+      return a && anim(a, [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.94)' }], { duration: d, easing: 'ease-in', fill: 'both' });
+    },
+    function slideParallax(a, b, d) {
+      var dir = Math.random() < .5 ? 1 : -1;
+      anim(b, [{ transform: 'translateX(' + (100 * dir) + '%)' }, { transform: 'translateX(0)' }], { duration: d, easing: E, fill: 'both' });
+      return a && anim(a, [{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(' + (-35 * dir) + '%)', opacity: .3 }], { duration: d, easing: E, fill: 'both' });
+    },
+    function cube(a, b, d) {
+      var dir = Math.random() < .5 ? 1 : -1;
+      b.style.transformOrigin = dir > 0 ? '0% 50%' : '100% 50%';
+      anim(b, [{ transform: 'translateX(' + (100 * dir) + '%) rotateY(' + (90 * dir) + 'deg)' }, { transform: 'translateX(0) rotateY(0deg)' }], { duration: d, easing: E, fill: 'both' });
+      if (!a) return;
+      a.style.transformOrigin = dir > 0 ? '100% 50%' : '0% 50%';
+      return anim(a, [{ transform: 'translateX(0) rotateY(0deg)', opacity: 1 }, { transform: 'translateX(' + (-100 * dir) + '%) rotateY(' + (-90 * dir) + 'deg)', opacity: .4 }], { duration: d, easing: E, fill: 'both' });
+    },
+    function iris(a, b, d) {
+      var x = Math.round(rand(30, 70)), y = Math.round(rand(30, 70));
+      anim(b, [{ clipPath: 'circle(0% at ' + x + '% ' + y + '%)', webkitClipPath: 'circle(0% at ' + x + '% ' + y + '%)', transform: 'scale(1.1)' },
+               { clipPath: 'circle(120% at ' + x + '% ' + y + '%)', webkitClipPath: 'circle(120% at ' + x + '% ' + y + '%)', transform: 'scale(1)' }], { duration: d, easing: 'cubic-bezier(.6,0,.3,1)', fill: 'both' });
+      return a && anim(a, [{ transform: 'scale(1)' }, { transform: 'scale(1.08)' }], { duration: d, fill: 'both' });
+    },
+    function diagonalWipe(a, b, d) {
+      var from = 'polygon(0% 0%, 0% 0%, -40% 100%, -40% 100%)', to = 'polygon(0% 0%, 140% 0%, 100% 100%, -40% 100%)';
+      anim(b, [{ clipPath: from, webkitClipPath: from }, { clipPath: to, webkitClipPath: to }], { duration: d, easing: E, fill: 'both' });
+      return a && anim(a, [{ transform: 'translateX(0)' }, { transform: 'translateX(8%)' }], { duration: d, easing: E, fill: 'both' });
+    },
+    function zoomThrough(a, b, d) {
+      anim(b, [{ opacity: 0, transform: 'scale(.55)' }, { opacity: 1, transform: 'scale(1)' }], { duration: d, easing: 'cubic-bezier(.3,.8,.2,1)', fill: 'both' });
+      return a && anim(a, [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(2.6)' }], { duration: d * .8, easing: 'ease-in', fill: 'both' });
+    },
+    function spinIn(a, b, d) {
+      var r = Math.random() < .5 ? -10 : 10;
+      anim(b, [{ opacity: 0, transform: 'rotate(' + r + 'deg) scale(1.35)' }, { opacity: 1, transform: 'rotate(0deg) scale(1)' }], { duration: d, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
+      return a && anim(a, [{ opacity: 1, transform: 'rotate(0) scale(1)' }, { opacity: 0, transform: 'rotate(' + (-r / 2) + 'deg) scale(.85)' }], { duration: d, fill: 'both' });
+    },
+    function flashCut(a, b, d) {
+      anim(flash, [{ opacity: 0 }, { opacity: .85, offset: .35 }, { opacity: 0 }], { duration: d * .8, easing: 'ease-out' });
+      anim(b, [{ opacity: 0, transform: 'scale(1.06)' }, { opacity: 0, offset: .3 }, { opacity: 1, transform: 'scale(1)' }], { duration: d * .8, easing: 'ease-out', fill: 'both' });
+      return a && anim(a, [{ opacity: 1 }, { opacity: 0, offset: .35 }, { opacity: 0 }], { duration: d * .8, fill: 'both' });
+    },
+    function riseUp(a, b, d) {
+      anim(b, [{ transform: 'translateY(100%) scale(.9)', opacity: .6 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], { duration: d, easing: E, fill: 'both' });
+      return a && anim(a, [{ transform: 'translateY(0) scale(1)', opacity: 1 }, { transform: 'translateY(-20%) scale(.85)', opacity: 0 }], { duration: d, easing: E, fill: 'both' });
+    }
+  ];
+
+  function kenBurns(s, ms) {
+    if (s.kind === 'collage') {
+      s.cells.forEach(function (c, i) {
+        var from = ['translateY(-110%)', 'translateY(110%)', 'translateX(120%)'][i];
+        anim(c, [{ transform: from + ' rotate(' + rand(-6, 6) + 'deg)', opacity: 0 }, { transform: 'none', opacity: 1 }],
+             { duration: 1100, delay: 250 + i * 220, easing: 'cubic-bezier(.2,.9,.25,1.1)', fill: 'both' });
+        anim(c.firstChild, [{ transform: 'scale(1.25) translateY(' + rand(-4, 4) + '%)' }, { transform: 'scale(1.05) translateY(0)' }], { duration: ms + 2500, easing: 'linear', fill: 'both' });
+      });
+      return;
+    }
+    if (s.kind === 'video') return;
+    var z1 = rand(1.0, 1.08), z2 = rand(1.14, 1.24);
+    if (Math.random() < .4) { var t = z1; z1 = z2; z2 = t; }
+    var x1 = rand(-3, 3), y1 = rand(-3, 3), x2 = rand(-4, 4), y2 = rand(-3, 3);
+    s.kbAnim = anim(s.kb, [{ transform: 'translate(' + x1 + '%,' + y1 + '%) scale(' + z1 + ')' }, { transform: 'translate(' + x2 + '%,' + y2 + '%) scale(' + z2 + ')' }],
+                    { duration: ms + TRANS_MS * 2, easing: 'ease-in-out', fill: 'both' });
+  }
+
+  // ---------- date caption ----------
+  var lastCaption = '';
+  function showCaption(m) {
+    if (!m || !m.d) return;
+    var p = m.d.split('-');
+    var key = p[0] + '-' + p[1];
+    if (key === lastCaption) return;
+    lastCaption = key;
+    var month = caption.querySelector('.month'), year = caption.querySelector('.year'), rule = caption.querySelector('.rule');
+    month.textContent = MONTHS[parseInt(p[1], 10) - 1];
+    year.textContent = p[0];
+    anim(month, [{ opacity: 0, letterSpacing: '2.2em' }, { opacity: 1, letterSpacing: '1.2em', offset: .15 }, { opacity: 1, letterSpacing: '1em', offset: .8 }, { opacity: 0, letterSpacing: '.9em' }], { duration: 5200, delay: 500, easing: 'ease-out', fill: 'both' });
+    anim(year, [{ opacity: 0, transform: 'translateY(4vh)' }, { opacity: 1, transform: 'translateY(0)', offset: .15 }, { opacity: 1, offset: .8 }, { opacity: 0, transform: 'translateY(-1vh)' }], { duration: 5200, delay: 650, easing: 'ease-out', fill: 'both' });
+    anim(rule, [{ width: '0' }, { width: '22vw', offset: .2 }, { width: '22vw', offset: .8 }, { width: '0' }], { duration: 5200, delay: 500, easing: 'ease-in-out', fill: 'both' });
+  }
+
+  function runProgress(ms) {
+    if (progress._a) progress._a.cancel();
+    progress._a = anim(progress, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: ms, easing: 'linear', fill: 'both' });
+  }
+
+  function setInfo(s) {
+    var m = s.meta;
+    info.textContent = (pos + 1) + ' / ' + playlist.length + '   ·   ' + (m.n || m.f) + '   ·   ' + m.d;
+  }
+
+  // ---------- main loop ----------
+  var nextPromise = null;
+  function prefetch() {
+    var i = (pos + 1) % playlist.length;
+    nextPromise = { idx: i, p: build(playlist[i]) };
+    nextPromise.p.catch(function () {});
+  }
+
+  function go(step) {
+    if (busy) return;
+    busy = true;
+    clearTimeout(timer);
+    var target, p;
+    if (step === 1 && nextPromise) { target = nextPromise.idx; p = nextPromise.p; }
+    else { target = (pos + step + playlist.length) % playlist.length; p = build(playlist[target]); }
+    nextPromise = null;
+    p.then(function (s) {
+      pos = target;
+      if (pos === playlist.length - 1) { /* reshuffle for the next lap */ setTimeout(function () { playlist = buildPlaylist(); pos = -1; }, 0); }
+      show(s);
+    }, function (err) {
+      console.log('skipping unplayable item ' + JSON.stringify(playlist[target]) + ' ' + (err && (err.message || err.type)));
+      pos = target; busy = false; go(1);   // unplayable file: skip it
+    });
+  }
+
+  function show(s, forcedTransition) {
+    var old = current;
+    current = s;
+    stage.appendChild(s.el);
+    if (plaque._a) plaque._a.cancel();
+    if (!s.galaxy) {
+      anim(quip, [{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: 'forwards' });
+      // roughly every other photo gets its own funny caption, up top so it clears the date
+      // photos with a museum plaque get the plaque instead of a caption
+      var pl = s.kind === 'photo' && (window.PLAQUES || {})[s.meta.f];
+      if (pl) setTimeout(function () { if (current === s) plaqueIn(pl, s.meta, SPEEDS[speedIdx] - 800); }, 1400);
+      // Tagged photos always get a roast; other photos get a caption about half the time
+      else if (s.kind === 'photo' && (isTagged(s.meta) || Math.random() < .5)) setTimeout(function () { if (current === s) quipIn(0, SPEEDS[speedIdx] - 1200, true, isTagged(s.meta) ? taggedQuip() : null); }, 1500);
+    }
+    var idx;
+    do { idx = Math.floor(Math.random() * TRANSITIONS.length); } while (idx === lastTrans && TRANSITIONS.length > 1);
+    lastTrans = idx;
+    if (s.kind === 'collage') idx = 0;
+    (forcedTransition || TRANSITIONS[idx])(old && old.el, s.el, TRANS_MS);
+
+    dwell = SPEEDS[speedIdx] + (s.kind === 'collage' ? 3000 : 0) + (s.galaxy ? 4000 : 0);
+    kenBurns(s, dwell);
+    showCaption(s.meta);
+    setInfo(s);
+
+    if (s.kind === 'video') {
+      var v = s.video;
+      v.currentTime = 0;
+      var pr = v.play(); if (pr && pr.catch) pr.catch(function () { v.muted = true; v.play(); });
+      var maxMs = Math.min(((v.duration || 30) * 1000), 120000);
+      dwell = maxMs;
+      v.onended = function () { if (!paused) advance(); };
+    }
+
+    setTimeout(function () {
+      if (old) {
+        if (old.video) { old.video.pause(); old.video.removeAttribute('src'); old.video.load(); }
+        if (old.el.parentNode) old.el.parentNode.removeChild(old.el);
+      }
+      busy = false;
+      prefetch();
+    }, TRANS_MS + 50);
+
+    schedule(dwell);
+  }
+
+  function schedule(ms) {
+    clearTimeout(timer);
+    shownAt = Date.now(); dwell = ms;
+    runProgress(ms + TRANS_MS);
+    if (paused) { if (progress._a && progress._a.pause) progress._a.pause(); return; }
+    timer = setTimeout(advance, ms + (current && current.kind === 'video' ? 1500 : TRANS_MS));
+  }
+
+  // ---------- floating bokeh lights ----------
+  function bokeh() {
+    var host = document.getElementById('bokeh');
+    var colors = ['255,61,127', '255,177,61', '61,214,255', '255,255,255'];
+    for (var i = 0; i < 14; i++) (function () {
+      var o = document.createElement('div'); o.className = 'orb';
+      var size = rand(4, 16);
+      var col = pick(colors);
+      o.style.width = o.style.height = size + 'vh';
+      o.style.background = 'radial-gradient(circle, rgba(' + col + ',.55) 0%, rgba(' + col + ',0) 70%)';
+      host.appendChild(o);
+      function loop() {
+        var x = rand(0, 100), y = rand(10, 110), dur = rand(14000, 26000);
+        o.style.left = x + 'vw'; o.style.top = y + 'vh';
+        anim(o, [{ opacity: 0, transform: 'translate(0,0)' }, { opacity: rand(.25, .6), offset: .3 }, { opacity: rand(.2, .5), offset: .7 }, { opacity: 0, transform: 'translate(' + rand(-10, 10) + 'vw,' + rand(-50, -25) + 'vh)' }],
+             { duration: dur, easing: 'ease-in-out' }).finished.then(loop);
+      }
+      setTimeout(loop, rand(0, 9000));
+    })();
+  }
+
+  // ---------- galaxy: photo thumbnails swirl as stars, camera dives into one ----------
+  var GALAXY_EVERY = +((location.search.match(/galaxy=(\d+)/) || [0, 6])[1]);   // ?galaxy=2 to preview it sooner
+  var sinceGalaxy = 0;
+  var galaxyPrep = null;
+  var THUMBS = MEDIA.filter(function (m) { return m.t === 'i'; });
+  var gCanvas = document.getElementById('galaxy');
+  var quip = document.getElementById('quip');
+  var QUIPS = [
+    'Not pictured: the 47 blurry takes before this one.',
+    'Main character energy.',
+    'Nobody asked, but everybody showed up.',
+    'This is what a good night looks like.',
+    'Zero regrets. Okay, maybe one.',
+    'Somebody call the party police.',
+    'Look at this chaos. We love it.',
+    'Rated 10/10 by everyone who was there.',
+    'They said “one drink.” They lied.',
+    'This is why we can’t have nice things.',
+    'Serving looks. And snacks.',
+    'Evidence that the night was a success.',
+    'Witnesses say it was even better in person.',
+    'Still the best picture of the year.',
+    'Who let them out of the house looking this good?',
+    'Plot twist: it gets even better.',
+    'Professional troublemakers at work.',
+    'The group chat is still talking about this.',
+    'Caught in 4K, no filter needed.',
+    'Peak performance, honestly.',
+    'The designated driver did NOT see this coming.',
+    'Warning: dangerously high levels of fun.',
+    'Core memory unlocked.',
+    'Everyone’s favorite, no contest.',
+    'If you were there, you know.',
+    'Smile now, explain later.'
+  ];
+  // museum plaque slides up beside the photo, then fades out before the next slide
+  var plaque = document.getElementById('plaque');
+  function plaqueIn(p, meta, life) {
+    if (plaque._a) plaque._a.cancel();
+    plaque.querySelector('.pt').textContent = p.t;
+    plaque.querySelector('.ps').textContent = p.s || '';
+    plaque.querySelector('.ps').style.display = p.s ? '' : 'none';
+    plaque.querySelector('.pa').textContent = 'Family & Friends, ' + (meta.d || '').slice(0, 4);
+    plaque.querySelector('.pm').textContent = p.m;
+    console.log('plaque: ' + p.t);
+    plaque._a = anim(plaque, [{ opacity: 0, transform: 'translateY(6vh)' }, { opacity: 1, transform: 'translateY(0)', offset: .1 }, { opacity: 1, transform: 'translateY(0)', offset: .9 }, { opacity: 0, transform: 'translateY(2vh)' }],
+                     { duration: life, easing: 'ease-out', fill: 'both' });
+  }
+  var TAGGED = window.TAGGED || [];
+  var TAGGED_QUIPS = [
+    'Ugh. Not this guy again.',
+    'Why are there so many pictures of this guy?',
+    'Somebody photoshop this guy out.',
+    'Another one. Of course.',
+    'And just like that, the photo was ruined.',
+    'The camera did its best. It really did.',
+    'Ruining a perfectly good photo since forever.',
+    'We would crop him out, but he is in every shot.'
+  ];
+  var taggedBag = [];
+  function isTagged(m) { return m && TAGGED.indexOf(m.f) >= 0; }
+  function taggedQuip() { if (!taggedBag.length) taggedBag = shuffle(TAGGED_QUIPS.slice()); return taggedBag.pop(); }
+  var quipBag = [];
+  function nextQuip() { if (!quipBag.length) quipBag = shuffle(QUIPS.slice()); return quipBag.pop(); }
+
+  // Pops a funny caption in. life > 0 fades it out again after that many ms; top puts it above instead of below.
+  function quipIn(delay, life, top, text) {
+    quip.className = top ? 'top' : '';
+    quip.querySelector('.line').textContent = text || nextQuip();
+    console.log('caption: ' + quip.querySelector('.line').textContent);
+    if (life) anim(quip, [{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: life, delay: delay, fill: 'both' });
+    else anim(quip, [{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: delay, fill: 'forwards' });
+    anim(quip.querySelector('.line'), [{ transform: 'translateY(4vh) scale(.92)', opacity: 0 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], { duration: 900, delay: delay, easing: 'cubic-bezier(.2,1.4,.4,1)', fill: 'both' });
+  }
+
+  function starSprite(img) {
+    var S = 112, c = document.createElement('canvas'); c.width = c.height = S;
+    var x = c.getContext('2d');
+    x.save(); x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 8, 0, Math.PI * 2); x.clip();
+    x.drawImage(img, 8, 8, S - 16, S - 16); x.restore();
+    x.shadowColor = 'rgba(255,220,150,.95)'; x.shadowBlur = 10;
+    x.strokeStyle = 'rgba(255,240,210,.95)'; x.lineWidth = 2.5;
+    x.beginPath(); x.arc(S / 2, S / 2, S / 2 - 8, 0, Math.PI * 2); x.stroke();
+    return c;
+  }
+
+  function prepGalaxy() {
+    var picks = shuffle(THUMBS.slice()).slice(0, 110);
+    return Promise.all(picks.map(function (m) {
+      return loadImg('thumbs/' + m.f).then(function (im) { return { m: m, spr: starSprite(im) }; }, function () { return null; });
+    })).then(function (list) { return list.filter(Boolean); });
+  }
+
+  function advance() {
+    sinceGalaxy++;
+    if (THUMBS.length >= 12 && sinceGalaxy === GALAXY_EVERY - 1) galaxyPrep = prepGalaxy();
+    if (THUMBS.length >= 12 && sinceGalaxy >= GALAXY_EVERY) { sinceGalaxy = 0; galaxy(); }
+    else go(1);
+  }
+
+  function galaxy() {
+    if (busy) return;
+    busy = true; clearTimeout(timer);
+    if (current && current.video) current.video.pause();
+    var prep = galaxyPrep || prepGalaxy(); galaxyPrep = null;
+    prep.then(runGalaxy, function () { busy = false; go(1); });
+  }
+
+  function runGalaxy(stars) {
+    console.log('galaxy start, stars=' + stars.length);
+    if (stars.length < 8) { busy = false; go(1); return; }
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    var W = gCanvas.width = Math.round(window.innerWidth * dpr), H = gCanvas.height = Math.round(window.innerHeight * dpr);
+    var g = gCanvas.getContext('2d');
+    var CX = W / 2, CY = H / 2, R = Math.min(W, H * 1.9) * .46, TILT = .52, ARMS = 3, TWIST = 4.6;
+
+    stars.forEach(function (s, i) {
+      s.r = .14 + .86 * Math.pow(Math.random(), .9);
+      s.a = (i % ARMS) * Math.PI * 2 / ARMS + s.r * TWIST + rand(-.32, .32);
+      s.w = .32 / Math.sqrt(s.r + .08);
+      s.size = H * (.085 - .045 * s.r);
+    });
+    var dust = [];
+    var DUST_COLORS = ['#ffd9a8', '#ffffff', '#a8d8ff', '#ff9ec4', '#c9b8ff'];
+    for (var i = 0; i < 650; i++) {
+      var r = Math.pow(Math.random(), .7);
+      dust.push({ r: r, a: (i % ARMS) * Math.PI * 2 / ARMS + r * TWIST + rand(-.55, .55) * (1.2 - r * .4),
+                  w: .32 / Math.sqrt(r + .08), s: rand(.6, 2.4) * dpr, c: pick(DUST_COLORS), o: rand(.3, 1) });
+    }
+    var field = [];
+    for (i = 0; i < 220; i++) field.push({ x: Math.random() * W, y: Math.random() * H, s: rand(.4, 1.6) * dpr, o: rand(.2, .8), p: rand(0, 6) });
+
+    // target: a star partway out the arms
+    var mids = stars.filter(function (s) { return s.r > .3 && s.r < .8; });
+    var target = pick(mids.length ? mids : stars);
+    var photo = buildPhoto(target.m);
+    photo.catch(function () {});
+
+    var T_SWIRL = 6500, T_DIVE = 3600;
+    var t0 = performance.now(), last = t0, sim = 0, camRot = 0;
+    var zoomEnd = (H * .82) / target.size;
+    var handedOff = false;
+
+    if (current) setTimeout(function () { if (current && current.el && !handedOff) current.el.style.visibility = 'hidden'; }, 1300);
+    anim(gCanvas, [{ opacity: 0 }, { opacity: 1 }], { duration: 1200, easing: 'ease-out', fill: 'forwards' });
+    anim(caption, [{ opacity: 1 }, { opacity: 0 }], { duration: 600, fill: 'forwards' });
+    runProgress(T_SWIRL + T_DIVE);
+
+    function pos(s, simT) {
+      var ang = s.a + s.w * simT + camRot;
+      return { x: Math.cos(ang) * s.r * R, y: Math.sin(ang) * s.r * R * TILT, depth: Math.sin(ang) };
+    }
+    function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+
+    function frame(now) {
+      var el = now - t0, dt = Math.min(50, now - last) / 1000; last = now;
+      var dive = Math.max(0, Math.min(1, (el - T_SWIRL) / T_DIVE)), e = ease(dive);
+      sim += dt * (1 - .92 * e);                     // time slows as we dive in
+      camRot += dt * .05 * (1 - e);
+      var intro = Math.min(1, el / 2600), introE = 1 - Math.pow(1 - intro, 3);
+
+      var tp = pos(target, sim);
+      var zoom = (.45 + .55 * introE) * Math.exp(Math.log(zoomEnd) * e);
+      var follow = Math.min(1, e * 1.6);
+      var camX = tp.x * follow, camY = tp.y * follow;
+
+      g.globalCompositeOperation = 'source-over';
+      g.fillStyle = '#02010a'; g.fillRect(0, 0, W, H);
+      // distant starfield (barely moves)
+      for (var i = 0; i < field.length; i++) {
+        var f = field[i];
+        g.globalAlpha = f.o * (.6 + .4 * Math.sin(now / 700 + f.p));
+        g.fillStyle = '#fff'; g.fillRect(f.x - camX * .03, f.y - camY * .03, f.s, f.s);
+      }
+      g.globalAlpha = 1;
+      g.save();
+      g.translate(CX, CY); g.scale(zoom, zoom); g.translate(-camX, -camY);
+
+      // core glow
+      g.globalCompositeOperation = 'lighter';
+      var core = g.createRadialGradient(0, 0, 0, 0, 0, R * .55);
+      core.addColorStop(0, 'rgba(255,230,190,.85)'); core.addColorStop(.12, 'rgba(255,170,120,.45)');
+      core.addColorStop(.45, 'rgba(140,90,220,.16)'); core.addColorStop(1, 'rgba(40,20,90,0)');
+      g.fillStyle = core;
+      g.save(); g.scale(1, TILT); g.beginPath(); g.arc(0, 0, R * .55, 0, Math.PI * 2); g.fill(); g.restore();
+
+      // dust lanes
+      for (i = 0; i < dust.length; i++) {
+        var d = dust[i], ang = d.a + d.w * sim + camRot;
+        g.globalAlpha = d.o; g.fillStyle = d.c;
+        var ds = d.s / Math.max(1, zoom * .6);
+        g.fillRect(Math.cos(ang) * d.r * R, Math.sin(ang) * d.r * R * TILT, ds, ds);
+      }
+      g.globalCompositeOperation = 'source-over';
+
+      // photo stars, back to front
+      var list = stars.map(function (s) { var p = pos(s, sim); p.s = s; return p; });
+      list.sort(function (a, b) { return a.depth - b.depth; });
+      for (i = 0; i < list.length; i++) {
+        var p = list[i], s = p.s, sz = s.size * (1 + .22 * p.depth);
+        var isT = s === target;
+        g.globalAlpha = isT ? 1 : (.7 + .3 * (p.depth + 1) / 2) * (1 - .85 * e);
+        if (isT && dive > 0) {
+          g.globalCompositeOperation = 'lighter';
+          var halo = g.createRadialGradient(p.x, p.y, sz * .3, p.x, p.y, sz * 1.6);
+          halo.addColorStop(0, 'rgba(255,220,150,' + (.6 * (1 - e)) + ')'); halo.addColorStop(1, 'rgba(255,120,180,0)');
+          g.fillStyle = halo; g.beginPath(); g.arc(p.x, p.y, sz * 1.6, 0, Math.PI * 2); g.fill();
+          g.globalCompositeOperation = 'source-over';
+        }
+        g.drawImage(s.spr, p.x - sz / 2, p.y - sz / 2, sz, sz);
+      }
+      g.restore();
+      g.globalAlpha = 1;
+
+      if (dive >= 1) { handoff(); return; }
+      requestAnimationFrame(frame);
+    }
+
+    function handoff() {
+      handedOff = true;
+      photo.then(function (s) {
+        s.galaxy = true;
+        show(s, function (a, b, d) {
+          anim(b, [{ clipPath: 'circle(30% at 50% 50%)', webkitClipPath: 'circle(30% at 50% 50%)', transform: 'scale(1.15)' },
+                   { clipPath: 'circle(120% at 50% 50%)', webkitClipPath: 'circle(120% at 50% 50%)', transform: 'scale(1)' }], { duration: d, easing: 'cubic-bezier(.5,0,.2,1)', fill: 'both' });
+          anim(gCanvas, [{ opacity: 1 }, { opacity: 0 }], { duration: d, easing: 'ease-in', fill: 'forwards' });
+          if (a) a.style.visibility = 'hidden';
+        });
+        anim(caption, [{ opacity: 0 }, { opacity: 1 }], { duration: 10, fill: 'forwards' });
+        quipIn(900, 0, false, isTagged(target.m) ? taggedQuip() : null);
+      }, function () {
+        anim(gCanvas, [{ opacity: 1 }, { opacity: 0 }], { duration: 800, fill: 'forwards' });
+        if (current) current.el.style.visibility = '';
+        busy = false; go(1);
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- remote control ----------
+  var badgeTimer = null;
+  function flashBadge(text, stay) {
+    badge.textContent = text; badge.style.opacity = 1;
+    clearTimeout(badgeTimer);
+    if (!stay) badgeTimer = setTimeout(function () { badge.style.opacity = 0; }, 1600);
+  }
+  function togglePause() {
+    paused = !paused;
+    if (paused) {
+      clearTimeout(timer);
+      if (progress._a && progress._a.pause) progress._a.pause();
+      if (current && current.kbAnim && current.kbAnim.pause) current.kbAnim.pause();
+      if (current && current.video) current.video.pause();
+      flashBadge('❚❚  Paused', true);
+    } else {
+      if (current && current.kbAnim && current.kbAnim.play) current.kbAnim.play();
+      if (current && current.video) current.video.play();
+      flashBadge('▶  Play');
+      var left = Math.max(1500, dwell - (Date.now() - shownAt));
+      if (current && current.kind === 'video') { /* onended will advance */ }
+      else schedule(left);
+    }
+  }
+  window.remote = function (cmd) {
+    if (document.getElementById('intro')) return;
+    switch (cmd) {
+      case 'next': go(1); break;
+      case 'prev': go(-1); break;
+      case 'pause': togglePause(); break;
+      case 'info': info.style.opacity = info.style.opacity === '1' ? 0 : 1; break;
+      case 'speed':
+        speedIdx = (speedIdx + 1) % SPEEDS.length;
+        flashBadge((SPEEDS[speedIdx] / 1000) + ' sec per photo');
+        break;
+    }
+  };
+  document.addEventListener('keydown', function (e) {
+    var map = { 39: 'next', 37: 'prev', 13: 'pause', 32: 'pause', 179: 'pause', 38: 'info', 40: 'speed', 228: 'next', 227: 'prev' };
+    if (map[e.keyCode]) { e.preventDefault(); window.remote(map[e.keyCode]); }
+  });
+
+  // ---------- intro ----------
+  function intro() {
+    var el = document.getElementById('intro');
+    var h = el.querySelector('img'), p = el.querySelector('p');
+    anim(h, [{ opacity: 0, transform: 'scale(.7)', filter: 'blur(2vh) brightness(2.2)' }, { opacity: 1, transform: 'scale(1)', filter: 'blur(0) brightness(1)' }], { duration: 2200, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
+    anim(p, [{ opacity: 0, transform: 'translateY(2vh)' }, { opacity: .8, transform: 'translateY(0)' }], { duration: 1200, delay: 900, easing: 'ease-out', fill: 'both' });
+    prefetch();
+    setTimeout(function () {
+      anim(el, [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.4)' }], { duration: 1100, easing: 'ease-in', fill: 'both' }).finished.then(function () { el.parentNode.removeChild(el); });
+      go(1);
+    }, 4800);
+  }
+
+  if (!MEDIA.length) { var msg = document.querySelector('#intro p'); msg.textContent = 'no pictures found - run tools/prepare-media.ps1'; msg.style.opacity = 1; return; }
+  bokeh();
+  intro();
+})();
+</script>
+</body>
+</html>

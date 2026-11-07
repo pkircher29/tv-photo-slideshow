@@ -1,0 +1,40 @@
+﻿<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tag photos</title>
+<style>
+  body { margin: 0; background: #111; color: #eee; font-family: Segoe UI, Arial, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; background: #000d; padding: 10px 16px; display: flex; gap: 16px; align-items: center; }
+  button { background: #333; color: #fff; border: 0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 4px; padding: 4px; }
+  .c { position: relative; aspect-ratio: 1; cursor: pointer; overflow: hidden; border-radius: 4px; }
+  .c img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .c.on { outline: 4px solid #ff3d7f; outline-offset: -4px; }
+  .c.on::after { content: "TAGGED"; position: absolute; left: 0; right: 0; bottom: 0; background: #ff3d7f; color: #fff; font-size: 12px; font-weight: 700; text-align: center; padding: 2px 0; }
+  textarea { width: 90vw; height: 3em; }
+</style>
+</head>
+<body>
+<header><b>Click the photos to tag</b><span id="n">0 tagged</span><button id="copy">Copy tagged.js</button><button id="clr">Clear all</button></header>
+<div id="grid"></div>
+<script src="media.js"></script>
+<script>
+  var KEY = 'taggedPhotos', tags = {};
+  try { tags = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+  var grid = document.getElementById('grid'), n = document.getElementById('n');
+  function out() { return 'window.TAGGED = ' + JSON.stringify(Object.keys(tags).sort()) + ';'; }
+  function count() { n.textContent = Object.keys(tags).length + ' tagged'; window.tagged = Object.keys(tags).sort(); try { localStorage.setItem(KEY, JSON.stringify(tags)); } catch (e) {} }
+  MEDIA.forEach(function (m) {
+    if (m.t !== 'i') return;
+    var d = document.createElement('div'); d.className = 'c' + (tags[m.f] ? ' on' : '');
+    var im = new Image(); im.loading = 'lazy'; im.src = 'thumbs/' + m.f; d.appendChild(im);
+    d.onclick = function () { if (tags[m.f]) { delete tags[m.f]; d.classList.remove('on'); } else { tags[m.f] = 1; d.classList.add('on'); } count(); };
+    grid.appendChild(d);
+  });
+  document.getElementById('copy').onclick = function () { navigator.clipboard.writeText(out()); };
+  document.getElementById('clr').onclick = function () { tags = {}; [].forEach.call(document.querySelectorAll('.c.on'), function (e) { e.classList.remove('on'); }); count(); };
+  count();
+</script>
+</body>
+</html>
