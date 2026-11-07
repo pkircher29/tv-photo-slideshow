@@ -3,6 +3,15 @@
 A flashy, self-contained photo and video slideshow for **Android TV and Fire TV**. Your pictures and videos are packed
 inside the app, so it runs with no PC or network. It is a tiny native shell around a full-screen web page.
 
+## Download
+
+**[PhotoSlideshow.apk (demo build, 1.6 MB)](https://github.com/pkircher29/tv-photo-slideshow/releases/download/v1.0/PhotoSlideshow.apk)**
+from the [v1.0 release](https://github.com/pkircher29/tv-photo-slideshow/releases/tag/v1.0).
+
+The demo shows generated sample pictures so you can try the galaxy scene, captions and transitions on your TV straight
+away. To use your own photos, follow **Build it** below. Sideloading: enable ADB debugging in the TV's developer options,
+then `adb connect <tv-ip>:5555` and `adb install PhotoSlideshow.apk`, or use an app such as Downloader on the TV.
+
 ## What it does
 
 - Shuffled slideshow of photos and videos with a blurred backdrop, slow pan-and-zoom and nine different transitions.
